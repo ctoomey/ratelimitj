@@ -1,10 +1,13 @@
 buildscript {
     repositories {
         mavenCentral()
+        mavenLocal()
+        jcenter()
     }
     dependencies {
         classpath "io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.5.3"
 //        classpath 'org.junit.platform:junit-platform-gradle-plugin:1.0.0-M3'
+        classpath "org.jfrog.buildinfo:build-info-extractor-gradle:latest.release"
     }
 }
 
@@ -47,6 +50,7 @@ subprojects {
     apply plugin: 'maven-publish'
     apply plugin: 'maven'
     apply plugin: 'signing'
+    apply plugin: 'com.jfrog.artifactory'
 
     checkstyle {
         configFile = rootProject.file('gradle/config/checkstyle/checkstyle.xml')
@@ -90,36 +94,58 @@ ext {
     // Credentials for publication repositories (needed only for publishing)
     // Should be set in ${HOME}/.gradle/gradle.properties
     ossrhUser = project.hasProperty('ossrhUser') ? project.property('ossrhUser') : ""
-    osshrPassword = project.hasProperty('ossrhPassword') ? project.property('ossrhPassword') : ""
+    ossrhPassword = project.hasProperty('ossrhPassword') ? project.property('ossrhPassword') : ""
+    ossrhRepoUrl = project.hasProperty('ossrhRepoUrl') ? project.property('ossrhRepoUrl') : "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+    ossrhSnapshotRepoUrl = project.hasProperty('ossrhSnapshotRepoUrl') ? project.property('ossrhSnapshotRepoUrl') : "https://oss.sonatype.org/content/repositories/snapshots/"
+    ossrhDoSigning = project.hasProperty('ossrhDoSigning') ? project.property('ossrhDoSigning').toBoolean() : true
+}
+
+task printProperties {
+    doLast {
+        println ossrhUser
+        println ossrhPassword
+        println ossrhRepoUrl
+        println ossrhSnapshotRepoUrl
+        println ossrhDoSigning
+        if (ossrhDoSigning) println "do it" else println "don't do it"
+    }
 }
 
 configure([project(':ratelimitj-redis'), project(':ratelimitj-inmemory'), project(':ratelimitj-core'), project(':ratelimitj-dropwizard')]) {
 
+    apply plugin: 'signing'
+    apply plugin: 'maven'
+
+    project.group = 'es.moki.ratelimitj'
+    project.version = '0.3.4'
+
     // OSSRH publication
     if (ossrhUser != "") {
 
-        apply plugin: 'signing'
-        apply plugin: 'maven'
-
-        project.group = 'es.moki.ratelimitj'
-        project.version = '0.3.3'
-
         // Signature of artifacts
-        signing {
-            sign configurations.archives
+        if (ossrhDoSigning == true) { // doesn't work for me w/o == true :-[
+            println "signing"
+            signing {
+                sign configurations.archives
+            }
         }
 
         uploadArchives {
             repositories {
                 mavenDeployer {
                     // POM signature
-                    beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
-                    // Target repository
-                    repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
-                        authentication(userName: ossrhUser, password: osshrPassword)
+                    if (ossrhDoSigning == true) {
+                        println "signing 2"
+                        beforeDeployment {
+                            MavenDeployment deployment -> signing.signPom(deployment)
+                        }
                     }
-                    snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
-                        authentication(userName: ossrhUser, password: osshrPassword)
+                    // Target repository
+                    repository(url: ossrhRepoUrl) {
+                        authentication(userName: ossrhUser, password: ossrhPassword)
+                    }
+                    snapshotRepository(url: ossrhSnapshotRepoUrl) {
+                        authentication(userName: ossrhUser, password: ossrhPassword)
                     }
 
                     pom.project {
@@ -152,9 +178,34 @@ configure([project(':ratelimitj-redis'), project(':ratelimitj-inmemory'), projec
                 }
             }
         }
-        uploadArchives.dependsOn build
+    } else {
+        uploadArchives {
+            repositories {
+                mavenLocal()
+            }
+        }
     }
 
+    uploadArchives.dependsOn build
+
+/*    artifactory {
+        contextUrl = 'http://52.7.159.52/artifactory/'
+        publish {
+            repository {
+                repoKey = 'ext-release-local'
+                username = 'admin'
+                password = 'AP51HF7hmZL7Y9oLgMWbt9ABDBr_XXX'
+
+
+            }
+        }
+        resolve {
+            repository {
+                repoKey = 'ext-release-local'
+            }
+        }
+//        publications ('ivyJava','mavenJava')
+    }*/
 }
 
 task codeCoverageReport(type: JacocoReport) {
