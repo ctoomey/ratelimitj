@@ -2,3 +2,6 @@ org.gradle.jvmargs=-Xmx384m
 org.gradle.daemon=false
 ossrhUser=
 ossrhPassword=
+ossrhRepoUrl=
+ossrhSnapshotRepoUrl=
+ossrhDoSigning=

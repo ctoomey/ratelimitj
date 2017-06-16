@@ -7,7 +7,6 @@ buildscript {
     dependencies {
         classpath "io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.5.3"
 //        classpath 'org.junit.platform:junit-platform-gradle-plugin:1.0.0-M3'
-        classpath "org.jfrog.buildinfo:build-info-extractor-gradle:latest.release"
     }
 }
 
@@ -50,7 +49,6 @@ subprojects {
     apply plugin: 'maven-publish'
     apply plugin: 'maven'
     apply plugin: 'signing'
-    apply plugin: 'com.jfrog.artifactory'
 
     checkstyle {
         configFile = rootProject.file('gradle/config/checkstyle/checkstyle.xml')
@@ -100,17 +98,6 @@ ext {
     ossrhDoSigning = project.hasProperty('ossrhDoSigning') ? project.property('ossrhDoSigning').toBoolean() : true
 }
 
-task printProperties {
-    doLast {
-        println ossrhUser
-        println ossrhPassword
-        println ossrhRepoUrl
-        println ossrhSnapshotRepoUrl
-        println ossrhDoSigning
-        if (ossrhDoSigning) println "do it" else println "don't do it"
-    }
-}
-
 configure([project(':ratelimitj-redis'), project(':ratelimitj-inmemory'), project(':ratelimitj-core'), project(':ratelimitj-dropwizard')]) {
 
     apply plugin: 'signing'
@@ -124,7 +111,6 @@ configure([project(':ratelimitj-redis'), project(':ratelimitj-inmemory'), projec
 
         // Signature of artifacts
         if (ossrhDoSigning == true) { // doesn't work for me w/o == true :-[
-            println "signing"
             signing {
                 sign configurations.archives
             }
@@ -135,7 +121,6 @@ configure([project(':ratelimitj-redis'), project(':ratelimitj-inmemory'), projec
                 mavenDeployer {
                     // POM signature
                     if (ossrhDoSigning == true) {
-                        println "signing 2"
                         beforeDeployment {
                             MavenDeployment deployment -> signing.signPom(deployment)
                         }
@@ -187,25 +172,6 @@ configure([project(':ratelimitj-redis'), project(':ratelimitj-inmemory'), projec
     }
 
     uploadArchives.dependsOn build
-
-/*    artifactory {
-        contextUrl = 'http://52.7.159.52/artifactory/'
-        publish {
-            repository {
-                repoKey = 'ext-release-local'
-                username = 'admin'
-                password = 'AP51HF7hmZL7Y9oLgMWbt9ABDBr_XXX'
-
-
-            }
-        }
-        resolve {
-            repository {
-                repoKey = 'ext-release-local'
-            }
-        }
-//        publications ('ivyJava','mavenJava')
-    }*/
 }
 
 task codeCoverageReport(type: JacocoReport) {
@@ -234,12 +200,3 @@ codeCoverageReport.dependsOn {
 }
 // http://nemerosa.ghost.io/2015/07/01/publishing-to-the-maven-central-using-gradle/
 // ./gradlew uploadArchives closeAndPromoteRepository
-
-
-
-
-
-
-
-
-
